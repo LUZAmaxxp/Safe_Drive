@@ -61,10 +61,10 @@ def preprocess_data(df):
     X_train = np.array([process_pixels(pixels) for pixels in train_df['pixels']])
     y_train = to_categorical(train_df['emotion'], num_classes=7)
 
-    X_val = np.array([process_pixels(pixels) for pixels in val_df['pixels']])
+    x_val = np.array([process_pixels(pixels) for pixels in val_df['pixels']])
     y_val = to_categorical(val_df['emotion'], num_classes=7)
 
-    return X_train, y_train, X_val, y_val
+    return X_train, y_train, x_val, y_val
 
 def create_emotion_model():
     """
@@ -105,7 +105,7 @@ def main():
 
     # Preprocess data
     print("Preprocessing data...")
-    X_train, y_train, X_val, y_val = preprocess_data(df)
+    X_train, y_train, x_val, y_val = preprocess_data(df)
 
     # Create and train the model
     print("Creating model...")
@@ -116,7 +116,7 @@ def main():
 
     history = model.fit(
         X_train, y_train,
-        validation_data=(X_val, y_val),
+        validation_data=(x_val, y_val),
         epochs=50,
         batch_size=64,
         callbacks=[early_stopping]
@@ -127,7 +127,7 @@ def main():
     print("Trained model saved to models/emotion_model_trained.h5")
 
     # Print final accuracy
-    val_loss, val_accuracy = model.evaluate(X_val, y_val)
+    val_loss, val_accuracy = model.evaluate(x_val, y_val)
     print(f"Validation Accuracy: {val_accuracy:.4f}")
 
 if __name__ == "__main__":
