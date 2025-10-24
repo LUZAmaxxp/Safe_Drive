@@ -28,12 +28,15 @@ def detect_emotion_and_sleep(frame):
         return "No face detected", "Unknown"
 
 def main():
-    # Open webcam
+    # Open webcam (try different indices if 0 doesn't work)
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
-        print("Error: Could not open webcam")
-        return
+        print("Error: Could not open webcam at index 0, trying index 1...")
+        cap = cv2.VideoCapture(1)
+        if not cap.isOpened():
+            print("Error: Could not open webcam at any index")
+            return
 
     print("Starting Facial Emotion Recognition for Driver Sleep Detection...")
     print("Press 'q' to quit")
