@@ -67,7 +67,14 @@ python main.py
 - opencv-python: For video capture and image processing
 - fer: Facial emotion recognition library
 - tensorflow: Backend for FER
-- numpy, Pillow, matplotlib, scikit-learn: Supporting libraries
+- numpy, Pillow, matplotlib, scikit-learn: Supporting libraries  
+## Pysonar 
+to test the quality of code using sonarQube  
+
+pysonar \
+  --sonar-host-url=http://localhost:9000 \
+  --sonar-token=sqp_6a52ab009b9e6bca63edac33dc6935f18b3d7901 \
+  --sonar-project-key=safe_Drive
 
 ## License
 MIT License
