@@ -52,7 +52,7 @@ def setup_logger(name: str = 'safe_drive', level: str = None, log_file: str = No
             except OSError:
                 pass  # Skip on Windows or if permission denied
 
-        except (OSError, PermissionError) as e:
+        except (OSError) as e:
             print(f"Warning: Could not set up file logging: {e}")
 
     # Console handler
