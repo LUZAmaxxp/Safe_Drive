@@ -32,11 +32,31 @@ python main.py
 - Simplifies sleep detection by checking for emotions like 'sad' or 'neutral' which might indicate drowsiness.
 - Note: This is a basic implementation. For production, train a custom model on eye states for better accuracy.
 
+## Security Best Practices Implemented
+- **Environment Configuration**: Added `.env` file for secure configuration management with `python-dotenv`.
+- **Configuration Management**: Created `config.py` for centralized, validated configuration loading.
+- **Secure Logging**: Implemented `logger.py` with proper log levels, file permissions, and secure file handling.
+- **Input Validation**: Added `utils.py` with frame validation, emotion sanitization, and secure resource management.
+- **Secure Application Structure**: Refactored `main.py` into `main_secure.py` with proper error handling, resource cleanup, and security measures.
+- **Unit Tests**: Added `tests/test_app.py` with comprehensive test coverage for utilities and configuration.
+- **Git Security**: Added `.gitignore` to prevent sensitive files from being committed.
+
 ## Modifications Made
-- **requirements.txt**: Added dependencies including opencv-python, fer, tensorflow, numpy, Pillow, matplotlib, and scikit-learn.
-- **main.py**: Created a basic script for capturing webcam feed, detecting emotions using FER, and classifying sleep status based on dominant emotion.
+- **requirements.txt**: Added dependencies including opencv-python, fer, tensorflow, numpy, Pillow, matplotlib, scikit-learn, and python-dotenv.
+- **main.py**: Original basic script for capturing webcam feed, detecting emotions using FER, and classifying sleep status.
+- **main_secure.py**: Secure version of the application with proper error handling, logging, and resource management.
+- **config.py**: Configuration management with environment variable loading and validation.
+- **logger.py**: Secure logging implementation with file permissions and proper formatting.
+- **utils.py**: Utility functions for secure camera handling, input validation, and resource cleanup.
+- **tests/test_app.py**: Unit tests for configuration, utilities, and integration testing.
+- **.env**: Environment configuration file (not committed to version control).
+- **.gitignore**: Security-focused ignore file to prevent sensitive data exposure.
+- **models/train_model.py**: Added a script to download FER2013 dataset and train a CNN model for emotion recognition.
+- **models/emotion_model.h5**: Generated an untrained emotion recognition model using TensorFlow/Keras.
+- **models/emotion_model_trained.h5**: Trained emotion recognition model on a sample dataset (validation accuracy: 0.1000).
+- **data/fer2013.csv**: Sample FER2013 dataset created for training demonstration.
 - **TODO.md**: Added a task list for project initialization and future improvements.
-- **README.md**: Updated with project description, installation, usage, and this modifications section.
+- **README.md**: Updated with project description, installation, usage, security practices, and modifications section.
 
 ## Future Improvements
 - Integrate with vehicle systems for alerts.
