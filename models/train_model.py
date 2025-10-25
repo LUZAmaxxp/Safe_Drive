@@ -9,6 +9,7 @@ import os
 import requests
 from io import BytesIO
 from zipfile import ZipFile
+from Config import Config
 
 def download_fer2013():
     """
@@ -102,11 +103,10 @@ def download_shape_predictor():
         print("Shape predictor already exists.")
         return
 
-    url = "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2"
     print("Downloading dlib shape predictor...")
 
     try:
-        urllib.request.urlretrieve(url, predictor_path + '.bz2')
+        urllib.request.urlretrieve(config.URL_DLIB, predictor_path + '.bz2')
         print("Download complete. Extracting...")
 
         with bz2.BZ2File(predictor_path + '.bz2', 'rb') as f_in:
