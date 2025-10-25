@@ -28,7 +28,7 @@ class Config:
     # Logging Settings
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', 'logs/app.log')
-    URL_DLIB = os.getenv('Dlib_URL', 'http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
+    URL_DLIB = os.getenv('Dlib_URL', 'https://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
 
     # Performance Settings
     MAX_FPS = int(os.getenv('MAX_FPS', 30))
