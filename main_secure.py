@@ -14,6 +14,11 @@ from utils import (
 )
 import dlib
 
+# Sleep status constants
+SLEEP_STATUS_ASLEEP = "Asleep"
+SLEEP_STATUS_AWAKE = "Awake"
+SLEEP_STATUS_POSSIBLY_ASLEEP = "Possibly Asleep"
+
 class SafeDriveApp:
     """Secure Facial Emotion Recognition application for driver sleep detection."""
 
@@ -124,14 +129,14 @@ class SafeDriveApp:
         """Handle the case when eyes are closed."""
         if self.eye_closed_start is None:
             self.eye_closed_start = current_time
-            return "Possibly Asleep"
+            return SLEEP_STATUS_POSSIBLY_ASLEEP
 
         closed_duration = current_time - self.eye_closed_start
         if closed_duration >= 5:
             self.last_eye_closed_duration = closed_duration
-            return "Asleep"
+            return SLEEP_STATUS_ASLEEP
 
-        return "Possibly Asleep"
+        return SLEEP_STATUS_POSSIBLY_ASLEEP
 
     def _handle_eyes_open(self, current_time: float, sleep_prob: float) -> str:
         """Handle the case when eyes are open."""
@@ -140,10 +145,10 @@ class SafeDriveApp:
             self.last_eye_closed_duration = closed_duration
             self.eye_closed_start = None
             if closed_duration >= 10:
-                return "Awake"
+                return SLEEP_STATUS_AWAKE
 
         # Eyes are open, default to awake unless high emotion sleep prob
-        return "Possibly Asleep" if sleep_prob > 0.7 else "Awake"
+        return SLEEP_STATUS_POSSIBLY_ASLEEP if sleep_prob > 0.7 else SLEEP_STATUS_AWAKE
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """
