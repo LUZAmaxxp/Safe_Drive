@@ -113,36 +113,37 @@ class SafeDriveApp:
             Sleep status string
         """
         current_time = time.time()
-
-        # Detect eye closure
         eyes_closed = detect_eye_closure(frame, self.detector, self.predictor)
 
         if eyes_closed:
-            if self.eye_closed_start is None:
-                self.eye_closed_start = current_time
-            else:
-                closed_duration = current_time - self.eye_closed_start
-                if closed_duration >= 5:
-                    self.last_eye_closed_duration = closed_duration
-                    return "Asleep"
+            return self._handle_eyes_closed(current_time)
         else:
-            if self.eye_closed_start is not None:
-                closed_duration = current_time - self.eye_closed_start
-                self.last_eye_closed_duration = closed_duration
-                self.eye_closed_start = None
-                if closed_duration >= 10:
-                    return "Awake"
-            else:
-                # Eyes are open, default to awake unless high emotion sleep prob
-                if sleep_prob > 0.7:
-                    return "Possibly Asleep"
+            return self._handle_eyes_open(current_time, sleep_prob)
+
+    def _handle_eyes_closed(self, current_time: float) -> str:
+        """Handle the case when eyes are closed."""
+        if self.eye_closed_start is None:
+            self.eye_closed_start = current_time
+            return "Possibly Asleep"
+
+        closed_duration = current_time - self.eye_closed_start
+        if closed_duration >= 5:
+            self.last_eye_closed_duration = closed_duration
+            return "Asleep"
+
+        return "Possibly Asleep"
+
+    def _handle_eyes_open(self, current_time: float, sleep_prob: float) -> str:
+        """Handle the case when eyes are open."""
+        if self.eye_closed_start is not None:
+            closed_duration = current_time - self.eye_closed_start
+            self.last_eye_closed_duration = closed_duration
+            self.eye_closed_start = None
+            if closed_duration >= 10:
                 return "Awake"
 
-        # If eyes closed but not yet 5s, or transitioning
-        if self.eye_closed_start is not None:
-            return "Possibly Asleep"
-        else:
-            return "Awake"
+        # Eyes are open, default to awake unless high emotion sleep prob
+        return "Possibly Asleep" if sleep_prob > 0.7 else "Awake"
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """
