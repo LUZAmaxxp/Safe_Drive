@@ -9,8 +9,10 @@ from utils import (
     validate_frame,
     sanitize_emotion_label,
     calculate_sleep_probability,
+    detect_eye_closure,
     safe_release_resources
 )
+import dlib
 
 class SafeDriveApp:
     """Secure Facial Emotion Recognition application for driver sleep detection."""
@@ -24,6 +26,11 @@ class SafeDriveApp:
             self.cap = None
             self.frame_count = 0
             self.start_time = time.time()
+            # Eye closure tracking
+            self.eye_closed_start = None
+            self.last_eye_closed_duration = 0
+            self.detector = None
+            self.predictor = None
             logger.info(f"{self.config.APP_NAME} v{self.config.APP_VERSION} initialized")
         except Exception as e:
             logger.error(f"Failed to initialize application: {e}")
@@ -36,6 +43,16 @@ class SafeDriveApp:
             logger.info("Emotion detector initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize emotion detector: {e}")
+            raise
+
+    def initialize_eye_detector(self):
+        """Initialize the eye closure detector."""
+        try:
+            self.detector = dlib.get_frontal_face_detector()
+            self.predictor = dlib.shape_predictor(self.config.SHAPE_PREDICTOR_PATH)
+            logger.info("Eye closure detector initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize eye closure detector: {e}")
             raise
 
     def initialize_camera(self):
@@ -73,8 +90,8 @@ class SafeDriveApp:
                 # Calculate sleep probability
                 sleep_prob = calculate_sleep_probability(emotions[0]['emotions'])
 
-                # Determine sleep status based on probability threshold
-                sleep_status = "Possibly Asleep" if sleep_prob > 0.5 else "Awake"
+                # Determine sleep status based on eye closure and emotion
+                sleep_status = self.determine_sleep_status(frame, sleep_prob)
 
                 return dominant_emotion, sleep_status, sleep_prob
             else:
@@ -83,6 +100,49 @@ class SafeDriveApp:
         except Exception as e:
             logger.warning(f"Error in emotion detection: {e}")
             return "error", "Unknown", 0.0
+
+    def determine_sleep_status(self, frame: np.ndarray, sleep_prob: float) -> str:
+        """
+        Determine sleep status based on eye closure duration and emotion probability.
+
+        Args:
+            frame: Input frame
+            sleep_prob: Sleep probability from emotions
+
+        Returns:
+            Sleep status string
+        """
+        current_time = time.time()
+
+        # Detect eye closure
+        eyes_closed = detect_eye_closure(frame, self.detector, self.predictor)
+
+        if eyes_closed:
+            if self.eye_closed_start is None:
+                self.eye_closed_start = current_time
+            else:
+                closed_duration = current_time - self.eye_closed_start
+                if closed_duration >= 5:
+                    self.last_eye_closed_duration = closed_duration
+                    return "Asleep"
+        else:
+            if self.eye_closed_start is not None:
+                closed_duration = current_time - self.eye_closed_start
+                self.last_eye_closed_duration = closed_duration
+                self.eye_closed_start = None
+                if closed_duration >= 10:
+                    return "Awake"
+            else:
+                # Eyes are open, default to awake unless high emotion sleep prob
+                if sleep_prob > 0.7:
+                    return "Possibly Asleep"
+                return "Awake"
+
+        # If eyes closed but not yet 5s, or transitioning
+        if self.eye_closed_start is not None:
+            return "Possibly Asleep"
+        else:
+            return "Awake"
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -116,6 +176,7 @@ class SafeDriveApp:
         """Main application loop with security measures."""
         try:
             self.initialize_emotion_detector()
+            self.initialize_eye_detector()
             self.initialize_camera()
 
             logger.info("Starting Facial Emotion Recognition for Driver Sleep Detection...")

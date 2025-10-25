@@ -90,10 +90,42 @@ def create_emotion_model():
 
     return model
 
+def download_shape_predictor():
+    """
+    Download dlib shape predictor model for facial landmarks.
+    """
+    import urllib.request
+    import bz2
+
+    predictor_path = 'models/shape_predictor_68_face_landmarks.dat'
+    if os.path.exists(predictor_path):
+        print("Shape predictor already exists.")
+        return
+
+    url = "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2"
+    print("Downloading dlib shape predictor...")
+
+    try:
+        urllib.request.urlretrieve(url, predictor_path + '.bz2')
+        print("Download complete. Extracting...")
+
+        with bz2.BZ2File(predictor_path + '.bz2', 'rb') as f_in:
+            with open(predictor_path, 'wb') as f_out:
+                f_out.write(f_in.read())
+
+        os.remove(predictor_path + '.bz2')
+        print(f"Shape predictor extracted to {predictor_path}")
+    except Exception as e:
+        print(f"Failed to download shape predictor: {e}")
+        print("Please download manually from http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2")
+
 def main():
     # Ensure directories exist
     os.makedirs('data', exist_ok=True)
     os.makedirs('models', exist_ok=True)
+
+    # Download shape predictor if not present
+    download_shape_predictor()
 
     # Download dataset if not present
     dataset_path = 'data/fer2013.csv'

@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 from typing import Tuple, Optional
 from logger import logger
+import dlib
+from imutils import face_utils
+from scipy.spatial import distance as dist
 
 def secure_camera_capture(camera_index: int = 0, fallback_index: int = 1) -> Optional[cv2.VideoCapture]:
     """
@@ -100,6 +103,68 @@ def calculate_sleep_probability(emotions: dict) -> float:
         return 0.0
 
     return min(weighted_sum / total_weight, 1.0)
+
+def eye_aspect_ratio(eye):
+    """
+    Compute the eye aspect ratio (EAR) for a given eye.
+
+    Args:
+        eye: Array of eye landmarks
+
+    Returns:
+        Eye aspect ratio (float)
+    """
+    # Vertical eye landmarks
+    A = dist.euclidean(eye[1], eye[5])
+    B = dist.euclidean(eye[2], eye[4])
+
+    # Horizontal eye landmark
+    C = dist.euclidean(eye[0], eye[3])
+
+    # Eye aspect ratio
+    ear = (A + B) / (2.0 * C)
+
+    return ear
+
+def detect_eye_closure(frame: np.ndarray, detector, predictor, ear_thresh: float = 0.25) -> bool:
+    """
+    Detect if eyes are closed based on eye aspect ratio.
+
+    Args:
+        frame: Input frame
+        detector: dlib face detector
+        predictor: dlib shape predictor
+        ear_thresh: Threshold for eye aspect ratio to consider eyes closed
+
+    Returns:
+        True if eyes are closed, False otherwise
+    """
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rects = detector(gray, 0)
+
+    if len(rects) == 0:
+        return False  # No face detected, assume eyes open
+
+    # Get facial landmarks
+    shape = predictor(gray, rects[0])
+    shape = face_utils.shape_to_np(shape)
+
+    # Extract left and right eye coordinates
+    (lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
+    (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
+
+    leftEye = shape[lStart:lEnd]
+    rightEye = shape[rStart:rEnd]
+
+    # Calculate eye aspect ratios
+    leftEAR = eye_aspect_ratio(leftEye)
+    rightEAR = eye_aspect_ratio(rightEye)
+
+    # Average the eye aspect ratio
+    ear = (leftEAR + rightEAR) / 2.0
+
+    # Return True if eyes are closed (EAR below threshold)
+    return ear < ear_thresh
 
 def safe_release_resources(*resources):
     """

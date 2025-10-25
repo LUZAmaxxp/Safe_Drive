@@ -1,13 +1,16 @@
-# TODO List for Facial Emotion Recognition Project Initialization
+# TODO List for Eye Closure Detection Feature
 
-- [x] Create requirements.txt with necessary dependencies (opencv-python, fer, etc.)
-- [x] Create main.py script for basic facial emotion recognition and sleep detection
-- [x] Update README.md with project description and setup instructions
-- [x] Create basic folder structure (data/ and models/ directories)
-- [x] Install dependencies using pip
-- [x] Test the basic functionality of the app (webcam access issue resolved by trying multiple indices)
-- [x] Add a basic emotion recognition model to the models/ folder
-- [x] Train the model on FER2013 dataset (sample dataset used for demonstration)
-- [x] Implement security best practices (environment config, logging, input validation, secure coding)
-- [x] Add comprehensive unit tests for utilities and configuration
-- [x] Create secure version of the application (main_secure.py)
+## Pending Tasks
+- [ ] Install updated dependencies
+- [ ] Run train_model.py to download shape predictor
+- [ ] Test the application for eye closure detection and status changes
+- [ ] Update README.md and TODO.md as needed
+
+## Completed Tasks
+- [x] Update requirements.txt to add dlib and imutils dependencies
+- [x] Update config.py to add SHAPE_PREDICTOR_PATH configuration
+- [x] Update utils.py to add eye_aspect_ratio() and detect_eye_closure() functions
+- [x] Update main_secure.py to initialize dlib detector/predictor and add eye closure tracking logic
+- [x] Update models/train_model.py to add function to download shape predictor model
+- [x] Analyze user requirements and create implementation plan
+- [x] Get user confirmation on plan
