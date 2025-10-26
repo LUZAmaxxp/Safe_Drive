@@ -25,7 +25,7 @@ class TestConfig(unittest.TestCase):
         config = Config()
         self.assertEqual(config.APP_NAME, 'Safe_Drive')
         self.assertFalse(config.DEBUG)
-        self.assertEqual(config.SECRET_KEY, 'your-secret-key-here-change-in-production')
+        self.assertEqual(config.SECRET_KEY, 'default-secret-key-change-in-production')
 
 class TestUtils(unittest.TestCase):
     """Test utility functions."""

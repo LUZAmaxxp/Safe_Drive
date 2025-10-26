@@ -59,3 +59,14 @@ frontend/.env.production.local
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
+
+# CI/CD - Temporary artifacts (CI builds these but doesn't commit them)
+# Build artifacts are created during CI checks and automatically cleaned up
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
