@@ -8,3 +8,5 @@ scikit-learn
 python-dotenv
 dlib
 imutils
+flask
+flask-cors
