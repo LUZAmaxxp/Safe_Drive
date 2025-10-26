@@ -1,0 +1,12 @@
+opencv-python
+fer
+tensorflow
+numpy
+Pillow
+matplotlib
+scikit-learn
+python-dotenv
+dlib
+imutils
+flask
+flask-cors
