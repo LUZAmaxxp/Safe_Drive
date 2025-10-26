@@ -15,6 +15,30 @@ This project aims to build a comprehensive Facial Emotion Recognition (FER) syst
 - Python 3.8+
 - Webcam
 
+## CI/CD Pipeline
+
+This project includes a GitHub Actions CI workflow that automatically checks for errors in all branches.
+
+### What Gets Checked
+- ✅ Python syntax validation
+- ✅ Python unit tests
+- ✅ Frontend build and structure validation
+- ✅ Import checks and dependency validation
+
+### Running CI Checks Locally
+
+**Linux/Mac:**
+```bash
+bash scripts/run_local_ci.sh
+```
+
+**Windows:**
+```cmd
+scripts\run_local_ci.bat
+```
+
+For more details, see [.github/CI_WORKFLOW.md](.github/CI_WORKFLOW.md)
+
 ## Installation
 1. Clone or download this repository.
 2. Install dependencies:
