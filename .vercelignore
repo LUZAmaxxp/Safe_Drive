@@ -1,0 +1,34 @@
+# Python files
+*.py
+__pycache__/
+venv/
+env/
+
+# Data and models
+data/
+models/
+*.h5
+*.dat
+
+# Backend files
+app.py
+main_secure.py
+utils.py
+config.py
+logger.py
+requirements.txt
+
+# Logs
+logs/
+*.log
+
+# Documentation (optional - you can keep these)
+# README.md
+# TODO.md
+
+# Tests
+tests/
+
+# Scripts
+scripts/
+
