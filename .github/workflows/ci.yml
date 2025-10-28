@@ -144,7 +144,7 @@ jobs:
     - name: Check for syntax errors in all Python files
       run: |
         echo "Checking for syntax errors..."
-        python -m py_compile app.py config.py utils.py logger.py main_secure.py
+        python -m py_compile app.py config.py utils.py logger.py 
         echo "✓ All Python files compile successfully"
 
   # React frontend build

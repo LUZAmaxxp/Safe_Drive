@@ -1,0 +1,24 @@
+{
+  "name": "safe-drive",
+  "version": "1.0.0",
+  "description": "Driver Drowsiness Detection System",
+  "scripts": {
+    "frontend": "cd frontend && npm start",
+    "frontend:build": "cd frontend && npm run build",
+    "backend": "python app.py",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "keywords": [
+    "driver-drowsiness",
+    "emotion-detection",
+    "opencv",
+    "react",
+    "flask"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

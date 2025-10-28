@@ -14,6 +14,7 @@ function App() {
   const intervalRef = useRef(null);
   const statusIntervalRef = useRef(null);
 
+  // Use environment variable for API URL, fallback to localhost for development
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {

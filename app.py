@@ -24,7 +24,17 @@ SLEEP_STATUS_AWAKE = "Awake"
 SLEEP_STATUS_POSSIBLY_ASLEEP = "Possibly Asleep"
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS for production
+# This allows the frontend from any domain to access the API
+# For production, you might want to restrict this to specific origins
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",  # Allow all origins
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 class VideoStreamHandler:
     """Manages video streaming and driver status detection."""
