@@ -16,6 +16,16 @@ function App() {
 
   // Use environment variable for API URL, fallback to localhost for development
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  
+  // Create a configured axios instance
+  const axiosInstance = axios.create({
+    baseURL: API_URL,
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    withCredentials: true
+  });
 
   useEffect(() => {
     // Cleanup on unmount
@@ -33,22 +43,49 @@ function App() {
     try {
       setError(null);
       
-      // Start video streaming on backend
-      await axios.get(`${API_URL}/start`);
+      // Create a configured axios instance
+      const axiosInstance = axios.create({
+        baseURL: API_URL,
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      // Start video streaming on backend with retry logic
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          await axiosInstance.get('/start', {
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          break;
+        } catch (error) {
+          retries--;
+          if (retries === 0) throw error;
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+        }
+      }
       
       setIsStreaming(true);
       
-      // Update frame every 33ms (30 FPS)
-      intervalRef.current = setInterval(updateFrame, 33);
+      // Update frame every 50ms (20 FPS) - reduced for better stability
+      intervalRef.current = setInterval(updateFrame, 50);
       
       // Update status every 500ms
       statusIntervalRef.current = setInterval(updateStatus, 500);
       
-      // Initial updates
-      updateFrame();
-      updateStatus();
+      // Initial updates with delay to ensure backend is ready
+      setTimeout(() => {
+        updateFrame();
+        updateStatus();
+      }, 1000);
     } catch (err) {
-      setError(`Failed to start video stream: ${err.message}`);
+      console.error('Stream start error:', err);
+      setError(`Failed to start video stream: ${err.response?.data?.error || err.message}`);
       setIsStreaming(false);
     }
   };
@@ -70,19 +107,52 @@ function App() {
   };
 
   const updateFrame = async () => {
+    if (!isStreaming || !videoRef.current) return;
+    
     try {
-      const response = await axios.get(`${API_URL}/frame`);
-      if (response.data.frame && videoRef.current) {
-        videoRef.current.src = `data:image/jpeg;base64,${response.data.frame}`;
+      console.log('Fetching frame...');  // Debug log
+      const response = await axios.get(`${API_URL}/frame`, {
+        timeout: 5000,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (response.data && response.data.frame) {
+        const frameData = response.data.frame;
+        console.log('Frame received, length:', frameData.length);  // Debug log
+        
+        if (frameData && frameData.length > 0) {
+          const img = videoRef.current;
+          img.src = `data:image/jpeg;base64,${frameData}`;
+          setError(null);
+        } else {
+          console.warn('Received empty frame data');
+          setError('Empty frame received');
+        }
       }
     } catch (err) {
       console.error('Error updating frame:', err);
+      if (!error) {  // Only set error if not already set
+        const errorMessage = err.response?.status === 404 
+          ? 'Camera not available. Please check your camera connection.'
+          : 'Video stream connection lost. Trying to reconnect...';
+        setError(errorMessage);
+      }
+      
+      // If connection is lost, try to restart the stream
+      if (err.response?.status === 500 || err.code === 'ECONNABORTED') {
+        stopStream();
+        setTimeout(startStream, 2000); // Try to restart after 2 seconds
+      }
     }
   };
 
   const updateStatus = async () => {
     try {
-      const response = await axios.get(`${API_URL}/status`);
+      const response = await axiosInstance.get('/status');
       setDriverStatus(response.data);
     } catch (err) {
       console.error('Error updating status:', err);
@@ -147,13 +217,28 @@ function App() {
         <div className="main-content">
           <div className="video-container">
             <div className="video-wrapper">
-              <img
-                ref={videoRef}
-                alt="Driver Video Stream"
-                className="video-stream"
-                style={{ display: isStreaming ? 'block' : 'none' }}
-              />
-              {!isStreaming && (
+              {isStreaming ? (
+                <img
+                  ref={videoRef}
+                  alt="Driver Video Stream"
+                  className="video-stream"
+                  style={{ 
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    backgroundColor: '#000',
+                    imageRendering: 'crisp-edges'
+                  }}
+                  onError={(e) => {
+                    console.error('Image load error:', e);
+                    setError('Failed to load video frame');
+                  }}
+                  onLoad={() => {
+                    console.log('Frame loaded successfully');
+                    if (error) setError(null);
+                  }}
+                />
+              ) : (
                 <div className="video-placeholder">
                   <div className="placeholder-icon">🎥</div>
                   <p>Click "Start Monitoring" to begin</p>

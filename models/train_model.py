@@ -6,10 +6,12 @@ from tensorflow.keras.callbacks import EarlyStopping
 import pandas as pd
 import numpy as np
 import os
+import sys
 import requests
 from io import BytesIO
 from zipfile import ZipFile
-from Config import Config
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from config import Config
 
 def download_fer2013():
     """
@@ -106,7 +108,7 @@ def download_shape_predictor():
     print("Downloading dlib shape predictor...")
 
     try:
-        urllib.request.urlretrieve(config.URL_DLIB, predictor_path + '.bz2')
+        urllib.request.urlretrieve(Config.URL_DLIB, predictor_path + '.bz2')
         print("Download complete. Extracting...")
 
         with bz2.BZ2File(predictor_path + '.bz2', 'rb') as f_in:

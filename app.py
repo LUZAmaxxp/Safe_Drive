@@ -25,16 +25,18 @@ SLEEP_STATUS_POSSIBLY_ASLEEP = "Possibly Asleep"
 
 app = Flask(__name__)
 
-# Configure CORS for production
-# This allows the frontend from any domain to access the API
-# For production, you might want to restrict this to specific origins
-CORS(app, resources={
-    r"/api/*": {
-        "origins": "*",  # Allow all origins
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+# Configure CORS for development
+CORS(app, 
+     resources={
+         r"/*": {
+             "origins": ["http://localhost:3000"],  # React dev server
+             "methods": ["GET", "POST", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "Cache-Control", "Pragma"],
+             "expose_headers": ["Content-Type"]
+         }
+     },
+     supports_credentials=True
+)
 
 class VideoStreamHandler:
     """Manages video streaming and driver status detection."""
@@ -59,7 +61,15 @@ class VideoStreamHandler:
     def initialize(self):
         """Initialize camera and detectors."""
         try:
-            self.emotion_detector = FER(mtcnn=True)
+            try:
+                # Initialize FER detector; wrap in try/except because model init can
+                # raise fatal TensorFlow errors on some environments. If it fails,
+                # log and continue without emotion detection so the video stream
+                # can still run.
+                self.emotion_detector = FER(mtcnn=True)
+            except Exception as e:
+                logger.error(f"Failed to initialize FER detector: {e}")
+                self.emotion_detector = None
             self.detector = dlib.get_frontal_face_detector()
             self.predictor = dlib.shape_predictor(Config.SHAPE_PREDICTOR_PATH)
             self.cap = secure_camera_capture(
@@ -81,8 +91,21 @@ class VideoStreamHandler:
             return "invalid_frame", "Unknown", 0.0
         
         try:
+            if self.emotion_detector is None:
+                # No detector available; skip emotion detection
+                return "no_model", "Unknown", 0.0
+
+            # Ensure frame is in RGB format (FER expects RGB)
+            if len(frame.shape) == 2:  # Convert grayscale to RGB
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            elif frame.shape[2] == 4:  # Convert RGBA to RGB
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
+            elif frame.shape[2] == 3 and frame.dtype == np.uint8:
+                # Convert BGR to RGB if necessary
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
             emotions = self.emotion_detector.detect_emotions(frame)
-            
+
             if emotions:
                 dominant_emotion = sanitize_emotion_label(
                     max(emotions[0]['emotions'], key=emotions[0]['emotions'].get)
@@ -155,6 +178,9 @@ class VideoStreamHandler:
                 logger.warning("Failed to read frame from camera")
                 break
             
+            # Debug logging for frame info
+            logger.info(f"Frame captured: shape={frame.shape if frame is not None else 'None'}, type={frame.dtype if frame is not None else 'None'}")
+            
             self.frame_count += 1
             
             # Skip frames for performance
@@ -180,13 +206,56 @@ class VideoStreamHandler:
     
     def get_frame_base64(self):
         """Get current frame as base64 encoded string."""
-        with self.frame_lock:
-            if self.frame is None:
-                return None
-            
-            _, buffer = cv2.imencode('.jpg', self.frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
-            frame_base64 = base64.b64encode(buffer).decode('utf-8')
-            return frame_base64
+        try:
+            with self.frame_lock:
+                if self.frame is None:
+                    logger.warning("No frame available in buffer")
+                    return None
+                
+                # Log frame properties for debugging
+                logger.debug(f"Frame properties: shape={self.frame.shape}, dtype={self.frame.dtype}")
+                
+                # Ensure frame is valid
+                if not isinstance(self.frame, np.ndarray) or self.frame.size == 0:
+                    logger.error(f"Invalid frame format: type={type(self.frame)}, size={getattr(self.frame, 'size', 0)}")
+                    return None
+                
+                # Convert frame to BGR format for encoding
+                frame_to_encode = self.frame.copy()  # Create a copy to prevent race conditions
+                if len(frame_to_encode.shape) == 2:
+                    logger.debug("Converting grayscale to BGR")
+                    frame_to_encode = cv2.cvtColor(frame_to_encode, cv2.COLOR_GRAY2BGR)
+                elif frame_to_encode.shape[2] == 4:
+                    logger.debug("Converting RGBA to BGR")
+                    frame_to_encode = cv2.cvtColor(frame_to_encode, cv2.COLOR_RGBA2BGR)
+                elif frame_to_encode.shape[2] == 3 and frame_to_encode.dtype == np.uint8:
+                    logger.debug("Converting RGB to BGR")
+                    frame_to_encode = cv2.cvtColor(frame_to_encode, cv2.COLOR_RGB2BGR)
+                
+                # Optimize image for web transmission
+                encode_params = [
+                    cv2.IMWRITE_JPEG_QUALITY, 85,
+                    cv2.IMWRITE_JPEG_OPTIMIZE, 1,
+                    cv2.IMWRITE_JPEG_PROGRESSIVE, 1
+                ]
+                
+                # Encode frame
+                success, buffer = cv2.imencode('.jpg', frame_to_encode, encode_params)
+                if not success or buffer is None or buffer.size == 0:
+                    logger.error("Failed to encode frame to JPEG")
+                    return None
+                
+                try:
+                    # Convert to base64
+                    frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                    logger.debug(f"Successfully encoded frame: {len(frame_base64)} bytes")
+                    return frame_base64
+                except Exception as e:
+                    logger.error(f"Failed to encode frame to base64: {str(e)}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error in get_frame_base64: {str(e)}")
+            return None
     
     def get_status(self):
         """Get current driver status."""
@@ -203,6 +272,7 @@ def index():
     return Response(open('frontend/public/index.html').read(), mimetype='text/html')
 
 @app.route('/api/status')
+@app.route('/status')
 def get_status():
     """Get current driver status."""
     try:
@@ -213,35 +283,56 @@ def get_status():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/video')
+@app.route('/api/video')
 def video_feed():
     """Stream video frames as JPEG images."""
     def generate():
         while video_handler.running:
-            frame_base64 = video_handler.get_frame_base64()
-            if frame_base64:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n'
-                       b'Content-Length: ' + str(len(frame_base64)).encode() + b'\r\n\r\n' +
-                       base64.b64decode(frame_base64) + b'\r\n')
-            else:
+            try:
+                frame_base64 = video_handler.get_frame_base64()
+                if frame_base64:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n'
+                           b'Content-Length: ' + str(len(frame_base64)).encode() + b'\r\n\r\n' +
+                           base64.b64decode(frame_base64) + b'\r\n')
+                else:
+                    time.sleep(0.033)
+            except Exception as e:
+                logger.error(f"Error in video feed: {e}")
                 time.sleep(0.033)
     
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response = Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 @app.route('/api/frame')
+@app.route('/frame')
 def get_frame():
     """Get a single frame as base64."""
     try:
+        if not video_handler.running:
+            logger.warning("Frame requested but video is not running")
+            return jsonify({'error': 'Video stream not running'}), 400
+        
         frame_base64 = video_handler.get_frame_base64()
         if frame_base64:
-            return jsonify({'frame': frame_base64})
+            logger.debug(f"Sending frame: length={len(frame_base64)} bytes")
+            response = jsonify({'frame': frame_base64})
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
         else:
+            logger.warning("No frame available from video handler")
             return jsonify({'error': 'No frame available'}), 404
     except Exception as e:
-        logger.error(f"Error getting frame: {e}")
+        logger.error(f"Error getting frame: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/start')
+@app.route('/start')
 def start_video():
     """Start video streaming."""
     global video_handler, video_thread
@@ -257,6 +348,7 @@ def start_video():
         return jsonify({'message': 'Video streaming already running'})
 
 @app.route('/api/stop')
+@app.route('/stop')
 def stop_video():
     """Stop video streaming."""
     global video_handler
