@@ -2,7 +2,16 @@ import cv2
 import time
 from flask import Flask, Response, jsonify
 from flask_cors import CORS
-from fer import FER
+try:
+    from fer import FER
+except ImportError:
+    # Fallback for versions where FER is under fer.fer
+    try:
+        from fer.fer import FER
+    except Exception as e:
+        # If both imports fail, raise a clear error
+        raise ImportError("Failed to import FER from 'fer' library. Ensure compatible 'fer' is installed.") from e
+
 import numpy as np
 from config import Config
 from logger import logger
@@ -56,18 +65,51 @@ class VideoStreamHandler:
         self.frame_lock = threading.Lock()
         self.status_lock = threading.Lock()
     
+    def _initialize_stream(self):
+        """Initialize network stream capture."""
+        try:
+            logger.info(f"Connecting to stream: {Config.STREAM_URL}")
+            cap = cv2.VideoCapture(Config.STREAM_URL)
+            
+            # Test connection
+            if not cap.isOpened():
+                logger.error("Failed to open stream connection")
+                return None
+            
+            # Test first frame
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                logger.error("Failed to read first frame from stream")
+                cap.release()
+                return None
+            
+            logger.info(f"Stream connected successfully, frame size: {frame.shape}")
+            return cap
+            
+        except Exception as e:
+            logger.error(f"Stream initialization error: {e}")
+            return None
+    
     def initialize(self):
         """Initialize camera and detectors."""
         try:
             self.emotion_detector = FER(mtcnn=True)
             self.detector = dlib.get_frontal_face_detector()
             self.predictor = dlib.shape_predictor(Config.SHAPE_PREDICTOR_PATH)
-            self.cap = secure_camera_capture(
-                Config.CAMERA_INDEX,
-                Config.CAMERA_FALLBACK_INDEX
-            )
+            
+            # Initialize camera based on configuration
+            if Config.USE_STREAM:
+                logger.info(f"Using network stream mode - URL: {Config.STREAM_URL}")
+                self.cap = self._initialize_stream()
+            else:
+                logger.info(f"Using local camera mode - Index: {Config.CAMERA_INDEX}")
+                self.cap = secure_camera_capture(
+                    Config.CAMERA_INDEX,
+                    Config.CAMERA_FALLBACK_INDEX
+                )
+            
             if self.cap is None:
-                raise RuntimeError("Could not initialize camera")
+                raise RuntimeError("Could not initialize camera/stream")
             
             logger.info("Video handler initialized successfully")
             return True
@@ -148,12 +190,32 @@ class VideoStreamHandler:
         """Main video capture loop."""
         self.running = True
         logger.info("Starting video capture...")
+        consecutive_failures = 0
+        max_failures = 10
         
         while self.running:
             ret, frame = self.cap.read()
-            if not ret:
-                logger.warning("Failed to read frame from camera")
-                break
+            if not ret or frame is None:
+                consecutive_failures += 1
+                logger.warning(f"Failed to read frame from camera/stream (attempt {consecutive_failures}/{max_failures})")
+                
+                # Try to reconnect if using stream
+                if Config.USE_STREAM and consecutive_failures >= max_failures:
+                    logger.info("Attempting to reconnect to stream...")
+                    if self.cap:
+                        self.cap.release()
+                    self.cap = self._initialize_stream()
+                    if self.cap is None:
+                        logger.error("Failed to reconnect to stream")
+                        time.sleep(5)  # Wait longer before retry
+                        continue
+                    consecutive_failures = 0
+                
+                time.sleep(0.1)
+                continue
+            
+            # Reset failure counter on successful read
+            consecutive_failures = 0
             
             self.frame_count += 1
             

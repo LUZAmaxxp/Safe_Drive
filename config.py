@@ -17,8 +17,13 @@ class Config:
     ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
     # Webcam Settings
-    CAMERA_INDEX = int(os.getenv('CAMERA_INDEX', 0))
+    CAMERA_INDEX = int(os.getenv('CAMERA_INDEX', 1))
     CAMERA_FALLBACK_INDEX = int(os.getenv('CAMERA_FALLBACK_INDEX', 1))
+    
+    # Streaming Settings (for OBS method)
+    USE_STREAM = os.getenv('USE_STREAM', 'False').lower() == 'true'
+    STREAM_URL = os.getenv('STREAM_URL', 'http://localhost:8080/stream.mjpg')
+    STREAM_TYPE = os.getenv('STREAM_TYPE', 'mjpeg')  # mjpeg, rtsp, rtmp
 
     # Model Settings
     MODEL_PATH = os.getenv('MODEL_PATH', 'models/emotion_model_trained.h5')

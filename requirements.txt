@@ -1,6 +1,5 @@
 opencv-python
 fer
-tensorflow
 numpy
 Pillow
 matplotlib
@@ -10,3 +9,4 @@ dlib
 imutils
 flask
 flask-cors
+moviepy
